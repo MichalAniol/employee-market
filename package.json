@@ -2,12 +2,12 @@
   "name": "employee-market",
   "version": "1.0.0",
   "description": "Employee profile board",
-  "main": "script.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "copy .env.dev .env && vite temp",
+    "build": "copy .env.prod .env && vite build temp",
+    "preview": "copy .env.dev .env && vite preview temp",
+    "g": "copy .env.dev .env && node ./_html-generator/generator.js"
   },
   "author": "Szeri",
   "license": "ISC",
@@ -15,6 +15,12 @@
     "firebase": "^11.3.1"
   },
   "devDependencies": {
-    "vite": "^6.1.1"
+    "cheerio": "^1.0.0",
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "cssnano": "^7.0.6",
+    "http": "^0.0.1-security",
+    "vite": "^6.1.1",
+    "ws": "^8.17.1"
   }
 }

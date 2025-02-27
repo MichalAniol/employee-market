@@ -1,0 +1,15 @@
+/* Logged out view */
+
+.btn-sign-in-google {
+    padding: 10px 10px 10px 60px;
+    height: 60px;
+}
+
+.sign-in-icon {
+    position: absolute;
+    top: 7px;
+    left: 7px;
+    height: 45px;
+    width: 45px;
+    color: var(--white);
+}

@@ -1,3 +1,8 @@
 node_modules
 todo
 rules.txt
+dist/*
+temp/*
+# .env
+# .env.dev
+# .env.prod

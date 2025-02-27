@@ -1,16 +1,17 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth"
 import { getFirestore, collection, doc, getDoc } from "firebase/firestore"
-import { addEmployeeDataToDB, employeeForm, fulfillFormFromDoc } from "./employee.js"
+import { addEmployeeDataToDB, employeeForm, fulfillFormFromDoc } from "./employee/employee.js"
+import { get } from "./utils.js"
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-    apiKey: "AIzaSyCAUD9TOeu4sqqUpO9q20VZftq--5N13mc",
-    authDomain: "employee-market.firebaseapp.com",
-    projectId: "employee-market",
-    storageBucket: "employee-market.firebasestorage.app",
-    messagingSenderId: "205123514040",
-    appId: "1:205123514040:web:4dadc1bdd81ac056790e4d"
+    apiKey: import.meta.env.API_KEY,
+    authDomain: import.meta.env.AUTH_DOMAIN,
+    projectId: import.meta.env.PROJECT_ID,
+    storageBucket: import.meta.env.STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.MESSAGING_SENDER_ID,
+    appId: import.meta.env.APP_ID,
 };
 
 // Initialize Firebase
@@ -21,16 +22,15 @@ const db = getFirestore(app)
 
 const collectionName = "employees"
 
-const loggedInView = document.getElementById("logged-in-view")
-const loggedOutView = document.getElementById("logged-out-view")
+const dom = {
+    loggedInView: get("logged-in-view"),
+    loggedOutView: get("logged-out-view"),
+    signInWithGoogleBtn: get("sign-in-google-btn"),
+    signOutBtn: get("sign-out-btn"),
+}
 
-const signInWithGoogleBtn = document.getElementById("sign-in-google-btn")
-const signOutBtn = document.getElementById("sign-out-btn")
-
-
-
-signInWithGoogleBtn.addEventListener("click", logInViaGoogle)
-signOutBtn.addEventListener("click", signOutFromApp)
+dom.signInWithGoogleBtn.addEventListener("click", logInViaGoogle)
+dom.signOutBtn.addEventListener("click", signOutFromApp)
 
 /* Auth section */
 
@@ -42,7 +42,7 @@ onAuthStateChanged(auth, (user) => {
         // .catch((error) => {
         //     console.error(error.message)
         // })
-        
+
         employeeForm.addEventListener("submit", (event) => {
             event.preventDefault()
             addEmployeeDataToDB(db, user.uid)
@@ -54,7 +54,7 @@ onAuthStateChanged(auth, (user) => {
     }
 })
 
-function signOutFromApp() {
+const signOutFromApp = () => {
     signOut(auth)
         .then(() => {
         })
@@ -63,7 +63,7 @@ function signOutFromApp() {
         })
 }
 
-function logInViaGoogle() {
+const logInViaGoogle = () => {
     signInWithPopup(auth, google_provider)
         .then(() => {
         })
@@ -72,7 +72,7 @@ function logInViaGoogle() {
         })
 }
 
-async function getDocFromDB(userId) {
+const getDocFromDB = async (userId) => {
     const employeeRef = collection(db, collectionName)
     const docRef = doc(employeeRef, userId)
 
@@ -89,20 +89,16 @@ async function getDocFromDB(userId) {
 
 /* Custom functions */
 
-function showLoggedInView() {
-    hideView(loggedOutView)
-    showView(loggedInView)
+const showLoggedInView = () => {
+    hideView(dom.loggedOutView)
+    showView(dom.loggedInView)
 }
 
-function showLoggedOutView() {
-    hideView(loggedInView)
-    showView(loggedOutView)
+const showLoggedOutView = () => {
+    hideView(dom.loggedInView)
+    showView(dom.loggedOutView)
 }
 
-function showView(view) {
-    view.style.display = "block"
-}
+const showView = (view) => view.style.display = "block"
+const hideView = (view) => view.style.display = "none"
 
-function hideView(view) {
-    view.style.display = "none"
-}
