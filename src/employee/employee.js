@@ -115,6 +115,7 @@ async function addEmployeeDataToDB(db, userId) {
         // birthDate: birthDateValue,
         // email: emailValue,
         // phoneNumber: phoneNumberValue,
+        ...result,
         experience: experienceArray,
         skills: skillsArray,
         links: linksArray
