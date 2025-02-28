@@ -1,10 +1,11 @@
 type ExpressRequestT = typeof express.request
 type ExpressResponseT = typeof express.response
 
+
 // Uruchomienie Vite i servera na 8000
 (async () => {
     const server = await createServer({
-        root: path.resolve(__dirname, '../temp'), // Ustawienie katalogu 'src' jako głównego katalogu
+        root: path.resolve(__dirname, `../${configuration.folderPathOut}`), // Ustawienie katalogu in jako głównego katalogu
         server: {
             cors: true,
             port: 8000, // Definiowanie portu 8000
@@ -47,7 +48,7 @@ let watchFiles
 const fileDates: { [k: string]: number } = {}
 
 const myWatch = () => {
-    watchFiles = oof.getAllHtmlFiles('src', [])
+    watchFiles = oof.getAllHtmlFiles(configuration.folderPathIn, [])
 
     watchFiles.forEach((elem: string) => {
         const path = globalPath + elem
@@ -61,7 +62,6 @@ const myWatch = () => {
                 if (item !== time) {
                     fileDates[elem] = time
                     generator.start()
-                    // sendChatMessage('reload')
                     info(elem)
                     return
                 }

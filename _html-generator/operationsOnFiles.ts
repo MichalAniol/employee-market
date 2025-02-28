@@ -12,7 +12,7 @@ const oof = (function () {
 
 
     const load = (filePath: string) => {
-    console.log('%c filePath:', 'background: #ffcc00; color: #003300', filePath)
+        console.log('%c filePath:', 'background: #ffcc00; color: #003300', filePath)
         let data = null
 
         try {
@@ -72,11 +72,9 @@ const oof = (function () {
                     if (forbidden) return
 
                     const hasDot = e.indexOf('.') === -1
-                    const isHtml = e.indexOf('.html') > -1
-                    const isJs = e.indexOf('.css') > -1
-                    const isSvg = e.indexOf('.svg') > -1
+                    const condition = configuration.watchedFilesTypes.some((f: string) => e.indexOf(f) > -1)
 
-                    if (isHtml || isJs || isSvg) {
+                    if (condition) {
                         result.push(`${suffix}\\${e}`)
                         return
                     }

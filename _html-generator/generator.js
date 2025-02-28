@@ -7,6 +7,8 @@ const cors = require('cors');
 const cheerio = require('cheerio');
 const path = require('path');
 const { createServer } = require('vite');
+const configuration = require('../gConfig.js');
+console.log('%c configuration:', 'background: #ffcc00; color: #003300', configuration);
 const oof = (function () {
     let splitted = __dirname.split('\\');
     let path_out = '';
@@ -61,10 +63,8 @@ const oof = (function () {
                     if (forbidden)
                         return;
                     const hasDot = e.indexOf('.') === -1;
-                    const isHtml = e.indexOf('.html') > -1;
-                    const isJs = e.indexOf('.css') > -1;
-                    const isSvg = e.indexOf('.svg') > -1;
-                    if (isHtml || isJs || isSvg) {
+                    const condition = configuration.watchedFilesTypes.some((f) => e.indexOf(f) > -1);
+                    if (condition) {
                         result.push(`${suffix}\\${e}`);
                         return;
                     }
@@ -114,13 +114,9 @@ const oof = (function () {
     };
 }());
 const generator = (function () {
-    const INPUT_PATH = 'src';
-    const OUTPUT_PATH = 'temp';
-    const MINIFY = false;
     const globalPath = __dirname.replace('_html-generator', '');
-    const replaceBackslashes = (myPath) => myPath.replace(/\\/g, "/");
     const minify = (code) => {
-        if (!MINIFY)
+        if (!configuration.minifyFiles)
             return code;
         const stringsToRemove = ['\n', '\r', '  '];
         stringsToRemove.forEach(s => {
@@ -217,10 +213,10 @@ const generator = (function () {
             }
             return $;
         };
-        const pathFile = `${globalPath}${INPUT_PATH}\\index.html`;
+        const pathFile = `${globalPath}${configuration.folderPathIn}\\index.html`;
         const file = oof.load(pathFile);
         const $ = cheerio.load(file);
-        copyFiles('src', 'temp')
+        copyFiles(configuration.folderPathIn, configuration.folderPathOut)
             .then(() => console.log('Kopiowanie zakończone!'))
             .catch(err => console.error('Błąd:', err));
         aggregateFiles('src', $);
@@ -228,15 +224,15 @@ const generator = (function () {
             $('head').append('<link rel="stylesheet" href="style.css">');
         }
         const code = ($.html());
-        oof.save(`${globalPath}${OUTPUT_PATH}\\index.html`, minify(code));
-        oof.save(`${globalPath}${OUTPUT_PATH}\\style.css`, minify(minify(css)));
+        oof.save(`${globalPath}${configuration.folderPathOut}\\index.html`, minify(code));
+        oof.save(`${globalPath}${configuration.folderPathOut}\\style.css`, minify(minify(css)));
         console.log(`>>>> Saved!!! file: index.html`);
     };
     return { start };
 }());
 (async () => {
     const server = await createServer({
-        root: path.resolve(__dirname, '../temp'),
+        root: path.resolve(__dirname, `../${configuration.folderPathOut}`),
         server: {
             cors: true,
             port: 8000,
@@ -274,7 +270,7 @@ const globalPath = __dirname.replace('_html-generator', '');
 let watchFiles;
 const fileDates = {};
 const myWatch = () => {
-    watchFiles = oof.getAllHtmlFiles('src', []);
+    watchFiles = oof.getAllHtmlFiles(configuration.folderPathIn, []);
     watchFiles.forEach((elem) => {
         const path = globalPath + elem;
         const time = fs.statSync(path)?.mtime?.getTime();

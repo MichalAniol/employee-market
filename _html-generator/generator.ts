@@ -1,15 +1,8 @@
 const generator = (function () {
-    const INPUT_PATH = 'src'
-    const OUTPUT_PATH = 'temp'
-
-    const MINIFY = false
-
     const globalPath = __dirname.replace('_html-generator', '')
 
-    const replaceBackslashes = (myPath: string): string => myPath.replace(/\\/g, "/");
-
     const minify = (code: string) => {
-        if (!MINIFY) return code
+        if (!configuration.minifyFiles) return code
 
         const stringsToRemove = ['\n', '\r', '  ']
 
@@ -130,11 +123,11 @@ const generator = (function () {
 
 
 
-        const pathFile = `${globalPath}${INPUT_PATH}\\index.html`
+        const pathFile = `${globalPath}${configuration.folderPathIn}\\index.html`
         const file = oof.load(pathFile)
         const $ = cheerio.load(file)
 
-        copyFiles('src', 'temp')
+        copyFiles(configuration.folderPathIn, configuration.folderPathOut)
             .then(() => console.log('Kopiowanie zakończone!'))
             .catch(err => console.error('Błąd:', err));
 
@@ -147,8 +140,8 @@ const generator = (function () {
 
         const code = ($.html())
 
-        oof.save(`${globalPath}${OUTPUT_PATH}\\index.html`, minify(code))
-        oof.save(`${globalPath}${OUTPUT_PATH}\\style.css`, minify(minify(css)))
+        oof.save(`${globalPath}${configuration.folderPathOut}\\index.html`, minify(code))
+        oof.save(`${globalPath}${configuration.folderPathOut}\\style.css`, minify(minify(css)))
         console.log(`>>>> Saved!!! file: index.html`)
     }
 

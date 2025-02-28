@@ -6,3 +6,6 @@ const cors = require('cors')
 const cheerio = require('cheerio')
 const path = require('path')
 const { createServer } = require('vite')
+
+const configuration = require('../gConfig.js')
+console.log('%c configuration:', 'background: #ffcc00; color: #003300', configuration)
