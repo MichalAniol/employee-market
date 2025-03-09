@@ -320,27 +320,8 @@ const generator = (function () {
             }
         });
     };
-    async function copyFiles(srcDir, destDir) {
-        try {
-            if (!fs.existsSync(destDir)) {
-                fs.mkdirSync(destDir, { recursive: true });
-            }
-            const entries = fs.readdirSync(srcDir, { withFileTypes: true });
-            for (const entry of entries) {
-                const srcPath = path.join(srcDir, entry.name);
-                const destPath = path.join(destDir, entry.name);
-                if (entry.isDirectory()) {
-                    await copyFiles(srcPath, destPath);
-                }
-                else if (!entry.name.endsWith('.css') && !entry.name.endsWith('.html')) {
-                    fs.copyFileSync(srcPath, destPath);
-                }
-            }
-        }
-        catch (err) {
-            console.error('Błąd kopiowania plików:', err);
-        }
-    }
+    const aggregateHtml = () => {
+    };
     const start = () => {
         const aggregateFiles = (myPath, $) => {
             aggregateCss(myPath, $);
@@ -383,10 +364,7 @@ const generator = (function () {
         const pathFile = `${globalPath}${configuration.folderPathIn}\\index.html`;
         const file = oof.load(pathFile);
         const $ = cheerio.load(file);
-        copyFiles(configuration.folderPathIn, configuration.folderPathOut)
-            .then(() => console.log('Kopiowanie zakończone!'))
-            .catch(err => console.error('Błąd:', err));
-        aggregateFiles('src', $);
+        aggregateFiles(configuration.folderPathIn, $);
         if ($('head link[rel="stylesheet"][href="style.css"]').length === 0) {
             $('head').append('<link rel="stylesheet" href="style.css">');
         }
