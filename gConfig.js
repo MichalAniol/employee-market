@@ -8,5 +8,9 @@ module.exports = {
         '.svg',
         '.js',
     ],
+    ignored: [
+        '.html',
+        '.css',
+    ],
     minifyFiles: true,
 }

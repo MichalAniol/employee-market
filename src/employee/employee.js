@@ -41,42 +41,6 @@ const experienceContainerDataTypes = [null, null, 'date', 'date', null]
 const employeeDomElements = getAllById(employeeDomElementsIds)
 console.log('%c employeeDomElements:', 'background: #ffcc00; color: #003300', employeeDomElements)
 
-// const employeeForm = document.getElementById("employee-form")
-
-// /* Employee avatar */
-// const avatarLabelEl = document.getElementById("avatar-label")
-// const inputFieldAvatarEl = document.getElementById("input-avatar")
-
-// /* Employee personal data*/
-// const inputFieldNameEl = document.getElementById("input-name")
-// const inputFieldSurnameEl = document.getElementById("input-surname")
-// const inputFieldBirthDateEl = document.getElementById("input-birth-date")
-// const inputFieldEmailEl = document.getElementById("input-email")
-// const inputFieldPhoneNumberEl = document.getElementById("input-phone-number")
-
-// /* Employee experience */
-// const experienceContainer = document.getElementById("experience-container")
-// const addExperienceBtn = document.getElementById("add-experience-btn")
-
-// /* Employee skills */
-// const inputFieldSkillEl = document.getElementById("input-skill")
-// const addSkillBtn = document.getElementById("add-skill-btn")
-// const skillsContainerEl = document.getElementById("skills-container")
-
-// /* Employee links */
-// const inputFieldLinkEl = document.getElementById("input-link")
-// const addLinkBtn = document.getElementById("add-link-btn")
-// const linksContainerEl = document.getElementById("links-container")
-
-// const saveEmployeeDataBtn = document.getElementById("save-employee-data-btn")
-
-
-/* Event listeners */
-// inputFieldAvatarEl.addEventListener("change", changeLabelAvatar)
-// addExperienceBtn.addEventListener("click", addExperienceToExperienceContainer)
-// addSkillBtn.addEventListener("click", addSkillToSkillsContainer)
-// addLinkBtn.addEventListener("click", addLinkToLinksContainer)
-
 addChange(employeeDomElements.avatar.inputField, changeLabelAvatar)
 addClick(employeeDomElements.experience.addBtn, addExperienceToExperienceContainer)
 addClick(employeeDomElements.skills.addBtn, addSkillToSkillsContainer)
@@ -98,23 +62,12 @@ async function addEmployeeDataToDB(db, userId) {
         result[itemName] = itemName === 'birthDate' ? value : clearWitheSpacesInData(value)
     })
 
-    // const nameValue = clearWitheSpacesInData(inputFieldNameEl.value)
-    // const surnameValue = clearWitheSpacesInData(inputFieldSurnameEl.value)
-    // const birthDateValue = inputFieldBirthDateEl.value
-    // const emailValue = clearWitheSpacesInData(inputFieldEmailEl.value)
-    // const phoneNumberValue = clearWitheSpacesInData(inputFieldPhoneNumberEl.value)
-
     const experienceArray = createArrayFromExperience()
     const skillsArray = createArrayFromSkills()
     const linksArray = createArrayFromLinks()
 
     await setDoc(docRef, {
         avatar: ImageURL,
-        // name: nameValue,
-        // surname: surnameValue,
-        // birthDate: birthDateValue,
-        // email: emailValue,
-        // phoneNumber: phoneNumberValue,
         ...result,
         experience: experienceArray,
         skills: skillsArray,

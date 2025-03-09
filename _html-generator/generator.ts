@@ -1,6 +1,4 @@
 const generator = (function () {
-    const globalPath = __dirname.replace('_html-generator', '')
-
     const minify = (code: string) => {
         if (!configuration.minifyFiles) return code
 
@@ -49,32 +47,36 @@ const generator = (function () {
         })
     }
 
-    async function copyFiles(srcDir: string, destDir: string) {
-        try {
-            // Sprawdź, czy katalog docelowy istnieje, jeśli nie – utwórz go
-            if (!fs.existsSync(destDir)) {
-                fs.mkdirSync(destDir, { recursive: true });
-            }
-
-            // Pobierz listę plików i katalogów
-            const entries = fs.readdirSync(srcDir, { withFileTypes: true });
-
-            for (const entry of entries) {
-                const srcPath = path.join(srcDir, entry.name);
-                const destPath = path.join(destDir, entry.name);
-
-                if (entry.isDirectory()) {
-                    // Jeśli to katalog, utwórz go i kopiuj dalej rekurencyjnie
-                    await copyFiles(srcPath, destPath);
-                } else if (!entry.name.endsWith('.css') && !entry.name.endsWith('.html')) {
-                    // Jeśli to plik i nie jest .css/.html, skopiuj go
-                    fs.copyFileSync(srcPath, destPath);
-                }
-            }
-        } catch (err) {
-            console.error('Błąd kopiowania plików:', err);
-        }
+    const aggregateHtml = () => {
+        
     }
+
+    // async function copyFiles(srcDir: string, destDir: string) {
+    //     try {
+    //         // Sprawdź, czy katalog docelowy istnieje, jeśli nie – utwórz go
+    //         if (!fs.existsSync(destDir)) {
+    //             fs.mkdirSync(destDir, { recursive: true });
+    //         }
+
+    //         // Pobierz listę plików i katalogów
+    //         const entries = fs.readdirSync(srcDir, { withFileTypes: true });
+
+    //         for (const entry of entries) {
+    //             const srcPath = path.join(srcDir, entry.name);
+    //             const destPath = path.join(destDir, entry.name);
+
+    //             if (entry.isDirectory()) {
+    //                 // Jeśli to katalog, utwórz go i kopiuj dalej rekurencyjnie
+    //                 await copyFiles(srcPath, destPath);
+    //             } else if (!entry.name.endsWith('.css') && !entry.name.endsWith('.html')) {
+    //                 // Jeśli to plik i nie jest .css/.html, skopiuj go
+    //                 fs.copyFileSync(srcPath, destPath);
+    //             }
+    //         }
+    //     } catch (err) {
+    //         console.error('Błąd kopiowania plików:', err);
+    //     }
+    // }
 
     const start = () => {
 
@@ -121,21 +123,19 @@ const generator = (function () {
             return $
         }
 
-
-
         const pathFile = `${globalPath}${configuration.folderPathIn}\\index.html`
         const file = oof.load(pathFile)
         const $ = cheerio.load(file)
 
-        copyFiles(configuration.folderPathIn, configuration.folderPathOut)
-            .then(() => console.log('Kopiowanie zakończone!'))
-            .catch(err => console.error('Błąd:', err));
+        // copyFiles(configuration.folderPathIn, configuration.folderPathOut)
+        //     .then(() => console.log('Kopiowanie zakończone!'))
+        //     .catch(err => console.error('Błąd:', err))
 
-        aggregateFiles('src', $)
+        aggregateFiles(configuration.folderPathIn, $)
 
         // Dodaj <link> do <head>, jeśli jeszcze go tam nie ma
         if ($('head link[rel="stylesheet"][href="style.css"]').length === 0) {
-            $('head').append('<link rel="stylesheet" href="style.css">');
+            $('head').append('<link rel="stylesheet" href="style.css">')
         }
 
         const code = ($.html())

@@ -7,12 +7,11 @@ const oof = (function () {
     let path_out = '';
     splitted.forEach((e: string, i: number) => i < splitted.length - 1 ? path_out += e + '/' : null);
 
-    const globalPath = __dirname.replace('_html-generator', '')
     // const htmlPath = `${globalPath}_html\\`
 
 
     const load = (filePath: string) => {
-        console.log('%c filePath:', 'background: #ffcc00; color: #003300', filePath)
+        // console.log('%c filePath:', 'background: #ffcc00; color: #003300', filePath)
         let data = null
 
         try {
@@ -122,6 +121,40 @@ const oof = (function () {
         fs.writeFileSync(filePath, data)
     }
 
+    const ensureDir = (srcPath: string) => {
+        if (!fs.existsSync(srcPath)) {
+            fs.mkdirSync(srcPath, { recursive: true })
+            console.log(`Katalog utworzony w ./${configuration.folderPathOut}: ${srcPath}`)
+        }
+    }
+
+    const removeDir = (srcPath: string) => {
+        if (fs.existsSync(srcPath)) {
+            fs.rmSync(srcPath, { recursive: true, force: true })
+            console.log(`Katalog usunięty w ./${configuration.folderPathOut}: ${srcPath}`)
+        }
+    }
+
+    const removeFile = (srcPath: string) => {
+        if (fs.existsSync(srcPath)) {
+            fs.unlinkSync(srcPath);
+            console.log(`Plik usunięty w ./${configuration.folderPathOut}: ${srcPath}`)
+        }
+    }
+
+    const getSizeOfCreateFile = async (srcPath: string) => {
+        let result = null
+        if (fs.existsSync(srcPath)) {
+            try {
+                const stats = fs.statSync(srcPath)
+                result = stats.size
+            } catch (err) {
+                console.error(err)
+            }
+        }
+        return result
+    }
+
 
     return {
         load,
@@ -129,6 +162,10 @@ const oof = (function () {
         loadJson,
         getAllHtmlFiles,
         getAllPngFiles,
-        save
+        save,
+        ensureDir,
+        removeDir,
+        removeFile,
+        getSizeOfCreateFile
     }
 }())

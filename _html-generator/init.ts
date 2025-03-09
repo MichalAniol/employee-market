@@ -1,77 +1,156 @@
 type ExpressRequestT = typeof express.request
 type ExpressResponseT = typeof express.response
 
+const init = (function () {
 
-// Uruchomienie Vite i servera na 8000
-(async () => {
-    const server = await createServer({
-        root: path.resolve(__dirname, `../${configuration.folderPathOut}`), // Ustawienie katalogu in jako głównego katalogu
-        server: {
-            cors: true,
-            port: 8000, // Definiowanie portu 8000
-            fs: {
-                allow: [
-                    path.resolve(__dirname, '..') // Zezwala na dostęp do plików poza katalogiem projektu
-                ]
-            },
-            proxy: {
-                '/api': {
-                    target: 'http://localhost:8000',
-                    changeOrigin: true,
-                    configure: (proxy: any, options: any) => {
-                        proxy.on('proxyReq', (proxyReq: any) => {
-                            proxyReq.setHeader('Access-Control-Allow-Origin', '*');
-                        });
+    // Uruchomienie Vite i servera na 8000
+    (async () => {
+        const server = await createServer({
+            root: path.resolve(__dirname, `../${configuration.folderPathOut}`), // Ustawienie katalogu in jako głównego katalogu
+            server: {
+                cors: true,
+                port: 8000, // Definiowanie portu 8000
+                fs: {
+                    allow: [
+                        path.resolve(__dirname, '..') // Zezwala na dostęp do plików poza katalogiem projektu
+                    ]
+                },
+                proxy: {
+                    '/api': {
+                        target: 'http://localhost:8000',
+                        changeOrigin: true,
+                        configure: (proxy: any, options: any) => {
+                            proxy.on('proxyReq', (proxyReq: any) => {
+                                proxyReq.setHeader('Access-Control-Allow-Origin', '*');
+                            });
+                        }
                     }
                 }
-            }
-        },
-    });
+            },
+        });
 
-    await server.listen()
-    console.log(`Vite działa na: http://localhost:${server.config.server.port}`)
-})()
+        await server.listen()
+        console.log('\n')
+        info(`Vite działa na: http://localhost:${server.config.server.port}`)
+    })()
 
-const getZero = (num: number) => num < 10 ? '0' + num : num
+    const moveFile = (path: string) => {
+        const file = oof.load(`${globalPath}${path}`)
+        if (file) {
+            const pathWithoutFolderPathIn = path.replace(configuration.folderPathIn, '')
+            const newPath = `${globalPath}${configuration.folderPathOut}${pathWithoutFolderPathIn}`
+            oof.save(newPath, file)
 
-const info = (name: string) => {
-    const time = new Date()
-    const h = time.getHours()
-    const m = time.getMinutes()
-    const s = time.getSeconds()
-    const res = `>> ${getZero(h)}:${getZero(m)}:${getZero(s)} - ${name}`
-    console.log(res)
-}
-
-const globalPath = __dirname.replace('_html-generator', '')
-let watchFiles
-const fileDates: { [k: string]: number } = {}
-
-const myWatch = () => {
-    watchFiles = oof.getAllHtmlFiles(configuration.folderPathIn, [])
-
-    watchFiles.forEach((elem: string) => {
-        const path = globalPath + elem
-        const time = fs.statSync(path)?.mtime?.getTime()
-        const item = fileDates[elem]
-
-        if (time) {
-            if (!item) {
-                fileDates[elem] = time
-            } else {
-                if (item !== time) {
-                    fileDates[elem] = time
-                    generator.start()
-                    info(elem)
-                    return
-                }
-            }
         }
+    }
+
+    const ignored = ['.html', '.css']
+    
+    // Ścieżka do katalogu, który ma być obserwowany
+    const watcherIn = chokidar.watch(`./${configuration.folderPathIn}`, {
+        ignored: (path: string, stats: any) => stats?.isFile() && ignored.some((elem: string) => path.endsWith(elem)),
+        persistent: true // Kontynuowanie działania procesu
     })
-}
-generator.start()
 
-setInterval(() => {
-    myWatch()
-}, 300)
+    const watcherHtml = chokidar.watch(`./${configuration.folderPathOut}`, {
+        ignored: (path: string, stats: any) => stats?.isFile() && path.endsWith('.html'),
+        persistent: true // Kontynuowanie działania procesu
+    })
+    const watcherCss = chokidar.watch(`./${configuration.folderPathOut}`, {
+        ignored: (path: string, stats: any) => stats?.isFile() && path.endsWith('css'),
+        persistent: true // Kontynuowanie działania procesu
+    })
 
+    const watcherOut = chokidar.watch(`./${configuration.folderPathOut}`, {
+        ignored: (path: string, stats: any) => stats?.isFile() && ignored.some((elem: string) => path.endsWith(elem)),
+        persistent: true // Kontynuowanie działania procesu
+    })
+
+    type WatchedPaths = {
+        [directory: string]: string[]
+    }
+
+    const getPathOut = (srcPath: string) => {
+        const relativePath = path.relative(`./${configuration.folderPathIn}`, srcPath)
+        const tempPath = path.join(`./${configuration.folderPathOut}`, relativePath)
+        return tempPath
+    }
+
+    const start = () => {
+        // Obsługa różnych zdarzeń
+        watcherIn
+            .on('add', (path: string) => {
+                // moveFile(path) // w zamian "startFilesAnalyzer"
+                info(`Plik dodany: ${path}`)
+            })
+            .on('change', (path: string) => {
+                moveFile(path)
+                info(`Plik zmieniony: ${path}`)
+            })
+            .on('unlink', (path: string) => {
+                oof.removeFile(getPathOut(path))
+                info(`Plik usunięty: ${path}`)
+            })
+            .on('addDir', (path: string) => {
+                oof.ensureDir(getPathOut(path))
+                info(`Katalog dodany: ${path}`)
+            })
+            .on('unlinkDir', (path: string) => {
+                oof.removeDir(getPathOut(path))
+                info(`Katalog usunięty: ${path}`)
+            })
+            .on('error', (error: any) => info(`Błąd: ${error}`))
+            .on('ready', async () => {
+                info(`✅ Wszystkie pliki i katalogi z ./${configuration.folderPathIn} zostały załadowane!`)
+                let watchedPathsIn: WatchedPaths = watcherIn.getWatched()
+
+                watcherOut.on('ready', async () => {
+                    let watchedPathsOut: WatchedPaths = watcherOut.getWatched()
+                    // info('%c watchedPathsOut:', 'background: #ffcc00; color: #003300', watchedPathsOut)
+                    // info(`✅ Wszystkie pliki i katalogi z ./${configuration.folderPathOut} zostały załadowane!`)
+
+                    // Pobierz różnice
+                    startFilesAnalyzer.start(watchedPathsIn, watchedPathsOut)
+                })
+
+                watcherHtml
+                    .on('add', (path: string) => {
+                        generator.start()
+                        info(`Plik dodany: ${path}`)
+                    })
+                    .on('change', (path: string) => {
+                        generator.start()
+                        info(`Plik zmieniony: ${path}`)
+                    })
+                    .on('unlink', (path: string) => {
+                        generator.start()
+                        info(`Plik usunięty: ${path}`)
+                    })
+
+                    watcherCss
+                    .on('add', (path: string) => {
+                        generator.start()
+                        info(`Plik dodany: ${path}`)
+                    })
+                    .on('change', (path: string) => {
+                        generator.start()
+                        info(`Plik zmieniony: ${path}`)
+                    })
+                    .on('unlink', (path: string) => {
+                        generator.start()
+                        info(`Plik usunięty: ${path}`)
+                    })
+            })
+
+
+        info(`Obserwowanie katalogu ./${configuration.folderPathIn}...`)
+
+        generator.start()
+    }
+
+    return {
+        start
+    }
+}())
+
+init.start()

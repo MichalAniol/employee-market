@@ -7,7 +7,6 @@ const resultsContainer = document.getElementById("results-search")
 
 searchBtn.addEventListener("click", searchEmployeesInDB)
 
-
 async function searchEmployeesInDB() {
     const q = query(collection(db, collectionName), where("skills", "in", selectSkillsSearchEl.value))
 

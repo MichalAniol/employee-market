@@ -7,15 +7,23 @@ const cors = require('cors');
 const cheerio = require('cheerio');
 const path = require('path');
 const { createServer } = require('vite');
+const chokidar = require('chokidar');
 const configuration = require('../gConfig.js');
-console.log('%c configuration:', 'background: #ffcc00; color: #003300', configuration);
+const globalPath = __dirname.replace('_html-generator', '');
+const getZero = (num) => num < 10 ? '0' + num : num;
+const info = (name) => {
+    const time = new Date();
+    const h = time.getHours();
+    const m = time.getMinutes();
+    const s = time.getSeconds();
+    const res = `>> ${getZero(h)}:${getZero(m)}:${getZero(s)} - ${name}`;
+    console.log(res);
+};
 const oof = (function () {
     let splitted = __dirname.split('\\');
     let path_out = '';
     splitted.forEach((e, i) => i < splitted.length - 1 ? path_out += e + '/' : null);
-    const globalPath = __dirname.replace('_html-generator', '');
     const load = (filePath) => {
-        console.log('%c filePath:', 'background: #ffcc00; color: #003300', filePath);
         let data = null;
         try {
             if (fs.existsSync(filePath)) {
@@ -104,17 +112,176 @@ const oof = (function () {
     const save = (filePath, data) => {
         fs.writeFileSync(filePath, data);
     };
+    const ensureDir = (srcPath) => {
+        if (!fs.existsSync(srcPath)) {
+            fs.mkdirSync(srcPath, { recursive: true });
+            console.log(`Katalog utworzony w ./${configuration.folderPathOut}: ${srcPath}`);
+        }
+    };
+    const removeDir = (srcPath) => {
+        if (fs.existsSync(srcPath)) {
+            fs.rmSync(srcPath, { recursive: true, force: true });
+            console.log(`Katalog usunięty w ./${configuration.folderPathOut}: ${srcPath}`);
+        }
+    };
+    const removeFile = (srcPath) => {
+        if (fs.existsSync(srcPath)) {
+            fs.unlinkSync(srcPath);
+            console.log(`Plik usunięty w ./${configuration.folderPathOut}: ${srcPath}`);
+        }
+    };
+    const getSizeOfCreateFile = async (srcPath) => {
+        let result = null;
+        if (fs.existsSync(srcPath)) {
+            try {
+                const stats = fs.statSync(srcPath);
+                result = stats.size;
+            }
+            catch (err) {
+                console.error(err);
+            }
+        }
+        return result;
+    };
     return {
         load,
         loadSvg,
         loadJson,
         getAllHtmlFiles,
         getAllPngFiles,
-        save
+        save,
+        ensureDir,
+        removeDir,
+        removeFile,
+        getSizeOfCreateFile
+    };
+}());
+const startFilesAnalyzer = (function () {
+    const FileType = {
+        dir: 'DIR',
+        file: 'FILE'
+    };
+    const normalizePath = (filePath, baseFolder) => path.relative(`./${baseFolder}`, filePath);
+    const flattenPaths = (watched, baseFolder) => {
+        const result = new Map();
+        Object.entries(watched).forEach(([dir, files]) => {
+            const normalizedDir = normalizePath(dir, baseFolder);
+            result.set(normalizedDir, FileType.dir);
+            files.forEach(file => {
+                const filePath = normalizePath(path.join(dir, file), baseFolder);
+                result.set(filePath, FileType.file);
+            });
+        });
+        return result;
+    };
+    const compareDirectories = (watchedIn, watchedOut) => {
+        const pathsIn = flattenPaths(watchedIn, configuration.folderPathIn);
+        const pathsOut = flattenPaths(watchedOut, configuration.folderPathOut);
+        const onlyInPathsIn = [...pathsIn.entries()]
+            .filter(([p]) => !pathsOut.has(p))
+            .map(([p, type]) => [p, type]);
+        const onlyInPathsOut = [...pathsOut.entries()]
+            .filter(([p]) => !pathsIn.has(p))
+            .map(([p, type]) => [p, type]);
+        const inBothPaths = [...pathsIn.entries()]
+            .filter(([p]) => pathsOut.has(p))
+            .map(([p, type]) => [p, type]);
+        return {
+            onlyInPathsIn,
+            onlyInPathsOut,
+            inBothPaths
+        };
+    };
+    const copyItem = async (srcPath, destPath, type) => {
+        try {
+            if (type === FileType.dir) {
+                oof.removeDir(destPath);
+            }
+            else {
+                const file = oof.load(srcPath);
+                if (file) {
+                    oof.save(destPath, file);
+                }
+            }
+            info(`✅ Skopiowano: ${srcPath} ➝ ${destPath}`);
+        }
+        catch (error) {
+            console.error(`❌ Błąd kopiowania ${srcPath}:`, error);
+        }
+    };
+    const removeItem = async (pathToRemove, type) => {
+        try {
+            if (type === FileType.dir) {
+                oof.removeDir(pathToRemove);
+            }
+            else {
+                oof.removeFile(pathToRemove);
+            }
+            info(`🗑️ Usunięto: ${pathToRemove}`);
+        }
+        catch (error) {
+            console.error(`❌ Błąd usuwania ${pathToRemove}:`, error);
+        }
+    };
+    const syncDirectories = async (diff) => {
+        const { onlyInPathsIn, onlyInPathsOut } = diff;
+        for (const relativePath of onlyInPathsIn) {
+            const srcPath = path.join(globalPath, configuration.folderPathIn, relativePath[0]);
+            const destPath = path.join(globalPath, configuration.folderPathOut, relativePath[0]);
+            await copyItem(srcPath, destPath, relativePath[1]);
+        }
+        for (const relativePath of onlyInPathsOut) {
+            const pathToRemove = path.join(globalPath, configuration.folderPathOut, relativePath[0]);
+            await removeItem(pathToRemove, relativePath[1]);
+        }
+    };
+    const copyFileToOut = async (filePathIn, filePathOut) => {
+        try {
+            const file = oof.load(filePathIn);
+            if (file) {
+                oof.save(filePathOut, file);
+            }
+            info(`✅ Skopiowano plik: ${filePathIn} ➝ ${filePathOut}`);
+        }
+        catch (error) {
+            console.error(`❌ Błąd kopiowania pliku: ${filePathIn} ➝ ${filePathOut}`, error);
+        }
+    };
+    const compareFileDates = async (filePathIn, filePathOut) => {
+        try {
+            const statIn = await oof.getSizeOfCreateFile(filePathIn);
+            const statOut = await oof.getSizeOfCreateFile(filePathOut);
+            return statIn === statOut;
+        }
+        catch (error) {
+            console.error(`❌ Błąd podczas sprawdzania dat pliku: ${filePathIn} i ${filePathOut}`, error);
+            return false;
+        }
+    };
+    const checkFilesDatesAndSync = async (inBothPaths) => {
+        for (const [relativePath, type] of inBothPaths) {
+            const filePathIn = path.join(globalPath, configuration.folderPathIn, relativePath);
+            const filePathOut = path.join(globalPath, configuration.folderPathOut, relativePath);
+            if (type === FileType.file) {
+                const areFilesSame = await compareFileDates(filePathIn, filePathOut);
+                if (!areFilesSame) {
+                    await copyFileToOut(filePathIn, filePathOut);
+                }
+                else {
+                }
+            }
+        }
+    };
+    const start = async (watchedPathsIn, watchedPathsOut) => {
+        const diff = compareDirectories(watchedPathsIn, watchedPathsOut);
+        await syncDirectories(diff);
+        checkFilesDatesAndSync(diff.inBothPaths);
+    };
+    return {
+        start
     };
 }());
 const generator = (function () {
-    const globalPath = __dirname.replace('_html-generator', '');
     const minify = (code) => {
         if (!configuration.minifyFiles)
             return code;
@@ -230,67 +397,126 @@ const generator = (function () {
     };
     return { start };
 }());
-(async () => {
-    const server = await createServer({
-        root: path.resolve(__dirname, `../${configuration.folderPathOut}`),
-        server: {
-            cors: true,
-            port: 8000,
-            fs: {
-                allow: [
-                    path.resolve(__dirname, '..')
-                ]
-            },
-            proxy: {
-                '/api': {
-                    target: 'http://localhost:8000',
-                    changeOrigin: true,
-                    configure: (proxy, options) => {
-                        proxy.on('proxyReq', (proxyReq) => {
-                            proxyReq.setHeader('Access-Control-Allow-Origin', '*');
-                        });
+const init = (function () {
+    (async () => {
+        const server = await createServer({
+            root: path.resolve(__dirname, `../${configuration.folderPathOut}`),
+            server: {
+                cors: true,
+                port: 8000,
+                fs: {
+                    allow: [
+                        path.resolve(__dirname, '..')
+                    ]
+                },
+                proxy: {
+                    '/api': {
+                        target: 'http://localhost:8000',
+                        changeOrigin: true,
+                        configure: (proxy, options) => {
+                            proxy.on('proxyReq', (proxyReq) => {
+                                proxyReq.setHeader('Access-Control-Allow-Origin', '*');
+                            });
+                        }
                     }
                 }
-            }
-        },
-    });
-    await server.listen();
-    console.log(`Vite działa na: http://localhost:${server.config.server.port}`);
-})();
-const getZero = (num) => num < 10 ? '0' + num : num;
-const info = (name) => {
-    const time = new Date();
-    const h = time.getHours();
-    const m = time.getMinutes();
-    const s = time.getSeconds();
-    const res = `>> ${getZero(h)}:${getZero(m)}:${getZero(s)} - ${name}`;
-    console.log(res);
-};
-const globalPath = __dirname.replace('_html-generator', '');
-let watchFiles;
-const fileDates = {};
-const myWatch = () => {
-    watchFiles = oof.getAllHtmlFiles(configuration.folderPathIn, []);
-    watchFiles.forEach((elem) => {
-        const path = globalPath + elem;
-        const time = fs.statSync(path)?.mtime?.getTime();
-        const item = fileDates[elem];
-        if (time) {
-            if (!item) {
-                fileDates[elem] = time;
-            }
-            else {
-                if (item !== time) {
-                    fileDates[elem] = time;
-                    generator.start();
-                    info(elem);
-                    return;
-                }
-            }
+            },
+        });
+        await server.listen();
+        console.log('\n');
+        info(`Vite działa na: http://localhost:${server.config.server.port}`);
+    })();
+    const moveFile = (path) => {
+        const file = oof.load(`${globalPath}${path}`);
+        if (file) {
+            const pathWithoutFolderPathIn = path.replace(configuration.folderPathIn, '');
+            const newPath = `${globalPath}${configuration.folderPathOut}${pathWithoutFolderPathIn}`;
+            oof.save(newPath, file);
         }
+    };
+    const ignored = ['.html', '.css'];
+    const watcherIn = chokidar.watch(`./${configuration.folderPathIn}`, {
+        ignored: (path, stats) => stats?.isFile() && ignored.some((elem) => path.endsWith(elem)),
+        persistent: true
     });
-};
-generator.start();
-setInterval(() => {
-    myWatch();
-}, 300);
+    const watcherHtml = chokidar.watch(`./${configuration.folderPathOut}`, {
+        ignored: (path, stats) => stats?.isFile() && path.endsWith('.html'),
+        persistent: true
+    });
+    const watcherCss = chokidar.watch(`./${configuration.folderPathOut}`, {
+        ignored: (path, stats) => stats?.isFile() && path.endsWith('css'),
+        persistent: true
+    });
+    const watcherOut = chokidar.watch(`./${configuration.folderPathOut}`, {
+        ignored: (path, stats) => stats?.isFile() && ignored.some((elem) => path.endsWith(elem)),
+        persistent: true
+    });
+    const getPathOut = (srcPath) => {
+        const relativePath = path.relative(`./${configuration.folderPathIn}`, srcPath);
+        const tempPath = path.join(`./${configuration.folderPathOut}`, relativePath);
+        return tempPath;
+    };
+    const start = () => {
+        watcherIn
+            .on('add', (path) => {
+            info(`Plik dodany: ${path}`);
+        })
+            .on('change', (path) => {
+            moveFile(path);
+            info(`Plik zmieniony: ${path}`);
+        })
+            .on('unlink', (path) => {
+            oof.removeFile(getPathOut(path));
+            info(`Plik usunięty: ${path}`);
+        })
+            .on('addDir', (path) => {
+            oof.ensureDir(getPathOut(path));
+            info(`Katalog dodany: ${path}`);
+        })
+            .on('unlinkDir', (path) => {
+            oof.removeDir(getPathOut(path));
+            info(`Katalog usunięty: ${path}`);
+        })
+            .on('error', (error) => info(`Błąd: ${error}`))
+            .on('ready', async () => {
+            info(`✅ Wszystkie pliki i katalogi z ./${configuration.folderPathIn} zostały załadowane!`);
+            let watchedPathsIn = watcherIn.getWatched();
+            watcherOut.on('ready', async () => {
+                let watchedPathsOut = watcherOut.getWatched();
+                startFilesAnalyzer.start(watchedPathsIn, watchedPathsOut);
+            });
+            watcherHtml
+                .on('add', (path) => {
+                generator.start();
+                info(`Plik dodany: ${path}`);
+            })
+                .on('change', (path) => {
+                generator.start();
+                info(`Plik zmieniony: ${path}`);
+            })
+                .on('unlink', (path) => {
+                generator.start();
+                info(`Plik usunięty: ${path}`);
+            });
+            watcherCss
+                .on('add', (path) => {
+                generator.start();
+                info(`Plik dodany: ${path}`);
+            })
+                .on('change', (path) => {
+                generator.start();
+                info(`Plik zmieniony: ${path}`);
+            })
+                .on('unlink', (path) => {
+                generator.start();
+                info(`Plik usunięty: ${path}`);
+            });
+        });
+        info(`Obserwowanie katalogu ./${configuration.folderPathIn}...`);
+        generator.start();
+    };
+    return {
+        start
+    };
+}());
+init.start();
